@@ -12,5 +12,9 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
 
     Optional<Stock> findByProductId(Long productId);
 
+    // Spring Data JPA에서 제공하는 아노테이션 Lock
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Stock s WHERE s.id = :id")
+    Stock findByIdWithPessimisticLock(Long id);
 
 }
