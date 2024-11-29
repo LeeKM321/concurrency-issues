@@ -1,6 +1,8 @@
 package com.playdata.concurrencyissues.facade;
 
+import com.playdata.concurrencyissues.repository.RedisLockRepository;
 import com.playdata.concurrencyissues.service.OptimisticLockStockService;
+import com.playdata.concurrencyissues.service.StockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -11,23 +13,24 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class OptimisticLockFacade {
+public class LettuceLockFacade {
 
-    private final OptimisticLockStockService optimisticLockStockService;
+    private final RedisLockRepository repository;
+    private final StockService stockService;
 
     public void decrease(Long id, Long quantity) throws InterruptedException {
-        while (true) {
-            try {
-                optimisticLockStockService.decrease(id, quantity);
 
-                // 재고 감소 업데이트를 성공했다면 반복문 종료
-                break;
-            } catch (ObjectOptimisticLockingFailureException e) {
-                // 버전정보를 가지고 DB에 접근했는데, 버전이 일치하지 않아 업데이트에 실패했을 때 발생하는 예외.
-                log.error("업데이트 실패!: {}", e.getMessage());
-                Thread.sleep(100);
-            }
+        while (!repository.lock(id)) {
+            log.info("lock 획득 실패!");
+            Thread.sleep(50);
         }
+
+        // lock을 획득한 후에 실행되는 부분
+        log.info("lock 획득!");
+        stockService.decrease(id, quantity); // 재고 감소 로직 수행
+        repository.unlock(id); // lock 해제
+        log.info("lock 해제!");
+
     }
 
 }
